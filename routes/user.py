@@ -3,10 +3,9 @@ from models.user import BaseUser
 from typing import List,Annotated
 from passlib.context import CryptContext
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials,OAuth2PasswordBearer, OAuth2PasswordRequestForm
-import jwt
 from models.sessions import Session
 from datetime import timedelta,datetime
-
+from jose import JWTError, jwt
 
 user_router = APIRouter(prefix="/users",tags=["User"])
 
@@ -70,8 +69,10 @@ def delete_post(username: str):
 def encode_access_token(data:dict):
     SECRET_KEY = "YOUR-SECRET-KEY"
     ALGORITHM = "HS256"
-    data.update({'expire_date':datetime.now()+timedelta(minutes=60)})
-    encoded_token = jwt.encode(data,str(SECRET_KEY),ALGORITHM)
+    expire = datetime.utcnow() + timedelta(minutes=60)    
+    data.update({'expire_date':datetime.strftime(expire, '%Y %m %d')})
+    encoded_token = jwt.encode(data,str(SECRET_KEY),algorithm=ALGORITHM)
+    return encoded_token
 
 
 def decode_access_token(token:str):
@@ -107,14 +108,12 @@ def get_current_user(token:str=Depends(oauth2_scheme)):
 
 #     session = Session(1,'Ali')
 
-# def authenticate_user(username,password):
-#     user = get_user(username)
-    
-#     if user.password == mycontext.hash(password) :
-#         return user
-
-#     else : 
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Incorrect password")
+def authenticate_user(username,password):
+    user = get_user(username)
+    if mycontext.verify(password,user.password) :
+        return user
+    else : 
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Incorrect password")
 
 @user_router.post("/Login")
 def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
